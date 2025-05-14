@@ -1,5 +1,5 @@
 # PingPlotterPS51
-
+[![Hits](https://github.com/MaxITService/Ping-Plotter-PS51)](https://hits.sh/github.com/MaxITService/Ping-Plotter-PS51)
 A PowerShell 5.1+ script that functions as a "ping plotter" analog. It tests connectivity to a target host, logs results, displays a summary, and can perform diagnostic actions during outages.
 
 **BETA STATUS NOTICE**: This script is currently in beta. While it has been tested, it may contain bugs or unexpected behaviors. Please report any issues you encounter.
