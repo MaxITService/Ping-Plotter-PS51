@@ -75,7 +75,7 @@ Check out my Free Extension for Web AI chats to quickly reuse your prompts:
 
 [![Check out my Free Extension for Web AI chats to quickly reuse your prompts](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text/raw/master/Promo/promo440_280.png)](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1)
 
-[OneClickPrompts on Chrome Web Store](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1)
+[OneClickPrompts on Chrome Web Store](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1) | 
 [it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
 
-[Console2AI](https://github.com/MaxITService/Console2AI)] (it is open source) Get AI to your PowerShell 
+[Console2AI](https://github.com/MaxITService/Console2AI) (it is open source) Get AI to your PowerShell 
