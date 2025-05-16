@@ -795,14 +795,14 @@ function Show-PingPlotterFinalReport {
 
     Write-Host "Outage Log Summary`:" -ForegroundColor Yellow
     if ($null -ne $SessionResults.UnreachabilityEvents -and $SessionResults.UnreachabilityEvents.Count -gt 0) {
-        foreach ($Event in $SessionResults.UnreachabilityEvents) {
-            $StartTimeStr = $Event.StartTime.ToString('yyyy-MM-dd HH:mm:ss')
-            $EndTimeStr = $Event.EndTime.ToString('yyyy-MM-dd HH:mm:ss')
-            $TypeStr = $Event.Type
-            if ($Event.StillUnreachable) {
-                Write-Output "Host $($Event.Host) was in a '$TypeStr' state from $StartTimeStr and was still in this state at session end ($EndTimeStr)."
+        foreach ($TrackedEvent in $SessionResults.UnreachabilityEvents) {
+            $StartTimeStr = $TrackedEvent.StartTime.ToString('yyyy-MM-dd HH:mm:ss')
+            $EndTimeStr = $TrackedEvent.EndTime.ToString('yyyy-MM-dd HH:mm:ss')
+            $TypeStr = $TrackedEvent.Type
+            if ($TrackedEvent.StillUnreachable) {
+                Write-Output "Host $($TrackedEvent.Host) was in a '$TypeStr' state from $StartTimeStr and was still in this state at session end ($EndTimeStr)."
             } else {
-                Write-Output "Host $($Event.Host) experienced a '$TypeStr' state from $StartTimeStr to $EndTimeStr."
+                Write-Output "Host $($TrackedEvent.Host) experienced a '$TypeStr' state from $StartTimeStr to $EndTimeStr."
             }
         }
     } else {
