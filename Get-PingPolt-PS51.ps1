@@ -1,4 +1,3 @@
-Get-PingPlot51 – kopio.txt
 #Requires -Version 5.1
 
 <#
@@ -21,7 +20,8 @@ custom script) can be performed once per outage period.
 Results, including outage periods and diagnostic outputs, are logged to a specified file.
 A summary report is displayed at the end of the session. The default log filename includes
 a timestamp (yyyyMMdd_HHmmss) if not otherwise specified.
-The configuration used for the session can optionally be logged to the beginning of the log file.
+The configuration used for the session can optionally be logged. If logged, it can be
+written to the beginning of the main log file, or to a separate specified file (e.g., Config.JSON).
 
 This script is intended for Windows PowerShell 5.1+ environments.
 
@@ -47,7 +47,7 @@ If this parameter is omitted, the script will run in interactive configuration m
 
 .NOTES
 Date: 2025-05-18
-Version: 3.3.1 (PS5.1 Enhanced - Conditional log config prompt)
+Version: 3.3.2 (PS5.1 Enhanced - Flexible config logging options)
 
 Script Structure:
 - Parameter Handling
@@ -76,6 +76,11 @@ Example JSON Configuration File Structure (for PS5.1, use ConvertTo-Json -Depth 
         "TargetPort": null,
         "LogFilePath": "ping_plotter_log_20250518_103000.txt",
         "LogConfigurationToJson": false
+        // LogConfigurationToJson can be:
+        //   false (boolean): Do not log configuration.
+        //   true (boolean): Log configuration to the beginning of the main LogFilePath.
+        //   "Config.JSON" (string): Log configuration to "Config.JSON" in the script's directory.
+        //   "custom/path/to/config_log.json" (string): Log configuration to a custom file path.
     },
     "HardOutageSettings": {
         "ConsecutiveFailuresThreshold": 3,
@@ -266,7 +271,7 @@ function Get-PingPlotterConfiguration {
 
     $Config.GeneralSettings.CheckCount = Get-IntegerInput -PromptMessage "Enter the number of connection checks to perform" -DefaultValue 10000 -MinValue 1
     
-    $ConfigureAdvancedSettings = Get-YesNoAnswer -PromptMessage "Configure advanced settings (delay, ping mode, outage rules, diagnostics)?" -DefaultAnswer $false
+    $ConfigureAdvancedSettings = Get-YesNoAnswer -PromptMessage "Configure advanced settings (delay, ping mode, outage rules, diagnostics, config logging)?" -DefaultAnswer $false
 
     if ($ConfigureAdvancedSettings) {
         $Config.GeneralSettings.DelaySeconds = Get-IntegerInput -PromptMessage "Enter the delay between checks in seconds" -DefaultValue 2 -MinValue 0
@@ -324,8 +329,24 @@ function Get-PingPlotterConfiguration {
                 Diagnostics                         = @{ Enabled = $false; IncludeIpConfig = $false; IncludeAlternatePing = $false; AlternatePingHost = $null; RunCustomScript = $false; CustomScriptPath = $null }
             }
         }
-        # Prompt for logging configuration to file only if advanced settings are being configured
-        $Config.GeneralSettings.LogConfigurationToJson = Get-YesNoAnswer -PromptMessage "`nWrite configuration JSON to the beginning of the log file for easy retrieval?" -DefaultAnswer $false
+        
+        # Prompt for logging configuration
+        $PromptLogConfigMessage = "`nLog current configuration? [(Y)es to main log|(N)o (default)|(C)onfig.JSON in script dir|(filename/path)]"
+        $LogConfigInput = Read-Host -Prompt $PromptLogConfigMessage
+        if ([string]::IsNullOrWhiteSpace($LogConfigInput) -or $LogConfigInput -eq 'N' -or $LogConfigInput -eq 'n') {
+            $Config.GeneralSettings.LogConfigurationToJson = $false
+            Write-Host "Configuration will not be logged." -ForegroundColor Gray
+        } elseif ($LogConfigInput -eq 'Y' -or $LogConfigInput -eq 'y') {
+            $Config.GeneralSettings.LogConfigurationToJson = $true
+            Write-Host "Configuration will be logged to the main log file." -ForegroundColor Gray
+        } elseif ($LogConfigInput -eq 'C' -or $LogConfigInput -eq 'c') {
+            $Config.GeneralSettings.LogConfigurationToJson = "Config.JSON" 
+            Write-Host "Configuration will be logged to 'Config.JSON' in the script directory." -ForegroundColor Gray
+        } else {
+            $Config.GeneralSettings.LogConfigurationToJson = $LogConfigInput 
+            Write-Host "Configuration will be logged to '$LogConfigInput'." -ForegroundColor Gray
+        }
+
     } else {
         Write-Host "`nUsing default values for advanced settings." -ForegroundColor Gray
         $Config.GeneralSettings.DelaySeconds = 2
@@ -376,8 +397,14 @@ function Test-PingPlotterConfiguration {
         $ErrorMessages.Add("GeneralSettings.TargetPort is required for TCP mode and must be an integer between 1 and 65535.")
     }
     if ([string]::IsNullOrWhiteSpace($GS.LogFilePath)) { $ErrorMessages.Add("GeneralSettings.LogFilePath cannot be empty.") }
-    if ($GS.ContainsKey('LogConfigurationToJson') -and $GS.LogConfigurationToJson -isnot [bool]) {
-        $ErrorMessages.Add("GeneralSettings.LogConfigurationToJson must be a boolean value if specified.")
+    
+    if ($GS.ContainsKey('LogConfigurationToJson')) {
+        $LogConfigValue = $GS.LogConfigurationToJson
+        if ($null -ne $LogConfigValue -and $LogConfigValue -isnot [bool] -and $LogConfigValue -isnot [string]) {
+            $ErrorMessages.Add("GeneralSettings.LogConfigurationToJson must be a boolean (true/false) or a string (filepath) if specified.")
+        } elseif ($LogConfigValue -is [string] -and [string]::IsNullOrWhiteSpace($LogConfigValue)) {
+            $ErrorMessages.Add("GeneralSettings.LogConfigurationToJson, if a string, cannot be empty or consist only of whitespace.")
+        }
     }
 
 
@@ -868,26 +895,68 @@ try {
         Write-Verbose "Log file path not specified or empty in configuration, defaulting to`: $EffectiveLogFilePath"
     }
     $UserConfiguration.GeneralSettings.LogFilePath = $EffectiveLogFilePath 
-    Write-Output "Logs will be saved to`: $EffectiveLogFilePath"
+    Write-Output "Operational logs will be saved to`: $EffectiveLogFilePath"
 
-    if ($UserConfiguration.GeneralSettings.ContainsKey('LogConfigurationToJson') -and $UserConfiguration.GeneralSettings.LogConfigurationToJson -eq $true) {
-        Write-Verbose "Logging configuration to the beginning of the log file`: $EffectiveLogFilePath"
+
+    $LogConfigSetting = $null
+    if ($UserConfiguration.GeneralSettings.ContainsKey('LogConfigurationToJson')) {
+        $LogConfigSetting = $UserConfiguration.GeneralSettings.LogConfigurationToJson
+    }
+
+    $PathForConfigLog = $null
+    $ShouldLogConfig = $false
+
+    if ($LogConfigSetting -is [bool] -and $LogConfigSetting -eq $true) { # Y option from interactive, or 'true' from JSON
+        $PathForConfigLog = $EffectiveLogFilePath # Main operational log file
+        $ShouldLogConfig = $true
+        Write-Verbose "Configuration will be logged to the main operational log file: $PathForConfigLog"
+    } elseif ($LogConfigSetting -is [string]) {
+        if ($LogConfigSetting -eq "Config.JSON") { # C option from interactive, or "Config.JSON" from JSON
+            $PathForConfigLog = Join-Path -Path $ScriptBaseDirectory -ChildPath "Config.JSON"
+            $ShouldLogConfig = $true
+            Write-Verbose "Configuration will be logged to a separate file in script directory: $PathForConfigLog"
+        } elseif (-not [string]::IsNullOrWhiteSpace($LogConfigSetting)) { # Custom filename/path option
+            $CustomPath = $LogConfigSetting
+            if (-not (Split-Path -Path $CustomPath -IsAbsolute)) {
+                $PathForConfigLog = Join-Path -Path $ScriptBaseDirectory -ChildPath $CustomPath
+                Write-Verbose "Relative custom path for config log resolved to: $PathForConfigLog"
+            } else {
+                $PathForConfigLog = $CustomPath
+                Write-Verbose "Absolute custom path for config log: $PathForConfigLog"
+            }
+            $ShouldLogConfig = $true
+        }
+    } # If $LogConfigSetting is $false (boolean) or $null (not specified), $ShouldLogConfig remains $false.
+
+    if ($ShouldLogConfig -and -not [string]::IsNullOrWhiteSpace($PathForConfigLog)) {
+        Write-Verbose "Attempting to write configuration JSON to: $PathForConfigLog"
         try {
             $ConfigJsonForLog = $UserConfiguration | ConvertTo-Json -Depth 5
-            $LogHeader = "--- BEGIN CONFIGURATION JSON (as of session start `$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) ---"
+            $LogHeader = "--- BEGIN CONFIGURATION JSON (as of session start $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) ---"
             $LogFooter = "--- END CONFIGURATION JSON ---"
             $FullConfigLogMessage = "$LogHeader`n$ConfigJsonForLog`n$LogFooter`n" 
             
-            $LogDirectory = Split-Path -Path $EffectiveLogFilePath -Parent
+            $LogDirectory = Split-Path -Path $PathForConfigLog -Parent
             if ($null -ne $LogDirectory -and (-not (Test-Path -Path $LogDirectory -PathType Container))) {
-                Write-Verbose "Creating log directory for config logging`: $LogDirectory"
+                Write-Verbose "Creating directory for config log: $LogDirectory"
                 New-Item -Path $LogDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
             }
-            Add-Content -Path $EffectiveLogFilePath -Value $FullConfigLogMessage -ErrorAction Stop
+            
+            if ($PathForConfigLog -eq $EffectiveLogFilePath) { 
+                # Prepend to the main operational log file
+                Add-Content -Path $PathForConfigLog -Value $FullConfigLogMessage -ErrorAction Stop
+            } else { 
+                # Create or overwrite a separate file for the configuration
+                Set-Content -Path $PathForConfigLog -Value $FullConfigLogMessage -ErrorAction Stop
+            }
+            Write-Output "Configuration JSON has been written to '$PathForConfigLog'."
         } catch {
-            Write-Warning "Failed to write configuration JSON to log file '$EffectiveLogFilePath'`:$($_.Exception.Message)"
+            Write-Warning "Failed to write configuration JSON to log file '$PathForConfigLog': $($_.Exception.Message)"
         }
+    } elseif (($LogConfigSetting -is [bool] -and $LogConfigSetting -eq $false) -or ($null -eq $LogConfigSetting)) {
+        Write-Verbose "Logging of configuration JSON is disabled or not specified."
     }
+
 
     $GS = $UserConfiguration.GeneralSettings
     $ModeDisplay = if ($GS.TargetPort) { "`:$($GS.TargetPort)" } else { '' }
@@ -898,10 +967,10 @@ try {
 
     if ($null -ne $SessionOutcome) {
         Show-PingPlotterFinalReport -SessionResults $SessionOutcome
-        Write-Output "`nSession complete. Detailed logs are in '$EffectiveLogFilePath'."
+        Write-Output "`nSession complete. Detailed operational logs are in '$EffectiveLogFilePath'."
     } else {
         Write-Warning "Session did not complete as expected or was interrupted before results could be compiled. Reporting may be incomplete."
-        Write-Output "Check the log file for details`: '$EffectiveLogFilePath'."
+        Write-Output "Check the operational log file for details`: '$EffectiveLogFilePath'."
     }
 
 } catch {
@@ -928,3 +997,4 @@ try {
 }
 
 #endregion Main Script Logic
+
