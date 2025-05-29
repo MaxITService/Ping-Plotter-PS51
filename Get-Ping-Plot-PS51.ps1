@@ -47,7 +47,7 @@ If this parameter is omitted, the script will run in interactive configuration m
 
 .NOTES
 Date: 2025-05-18
-Version: 3.3.2 (PS5.1 Enhanced - Flexible config logging options)
+Version: 3.3.3 (PS5.1 Enhanced - ICMP test uses Test-Connection)
 
 Script Structure:
 - Parameter Handling
@@ -173,8 +173,8 @@ function Get-IntegerInput {
         [string]$PromptMessage,
         [Parameter(Mandatory = $true)]
         [int]$DefaultValue,
-        $MinValue = $null, 
-        $MaxValue = $null, 
+        $MinValue = $null,
+        $MaxValue = $null,
         [bool]$AllowEmptyForDefault = $true
     )
 
@@ -187,7 +187,7 @@ function Get-IntegerInput {
             Write-Host "Using default value`: $DefaultValue" -ForegroundColor Gray
             return $DefaultValue
         }
-        if ($InputPrompt -match '^-?\d+$') { 
+        if ($InputPrompt -match '^-?\d+$') {
             try {
                 $IntValue = [int]$InputPrompt
                 if ($IntValue -ge $MinValue -and $IntValue -le $MaxValue) {
@@ -208,7 +208,7 @@ function Get-DiagnosticSettingsFromUser {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$OutageTypeForPrompt, 
+        [string]$OutageTypeForPrompt,
         [string]$PromptIndentation = "  "
     )
 
@@ -270,14 +270,14 @@ function Get-PingPlotterConfiguration {
     } while ([string]::IsNullOrWhiteSpace($Config.GeneralSettings.TargetHost))
 
     $Config.GeneralSettings.CheckCount = Get-IntegerInput -PromptMessage "Enter the number of connection checks to perform" -DefaultValue 10000 -MinValue 1
-    
+
     $ConfigureAdvancedSettings = Get-YesNoAnswer -PromptMessage "Configure advanced settings (delay, ping mode, outage rules, diagnostics, config logging)?" -DefaultAnswer $false
 
     if ($ConfigureAdvancedSettings) {
         $Config.GeneralSettings.DelaySeconds = Get-IntegerInput -PromptMessage "Enter the delay between checks in seconds" -DefaultValue 2 -MinValue 0
 
         do {
-            $ModeInput = Read-Host -Prompt "Select Ping Mode`: [1] ICMP (ping) or [2] TCP (Test-NetConnection) (Default`: 1)"
+            $ModeInput = Read-Host -Prompt "Select Ping Mode`: [1] ICMP (Test-Connection) or [2] TCP (Test-NetConnection) (Default`: 1)"
             if ([string]::IsNullOrWhiteSpace($ModeInput) -or $ModeInput -eq '1') {
                 $Config.GeneralSettings.PingMode = 'ICMP'
                 Write-Host "Using default mode`: ICMP" -ForegroundColor Gray
@@ -321,7 +321,7 @@ function Get-PingPlotterConfiguration {
                 $Config.SoftOutageSettings.ConsecutiveHighLatencyThreshold = $null
                 $Config.SoftOutageSettings.Diagnostics = @{ Enabled = $false; IncludeIpConfig = $false; IncludeAlternatePing = $false; AlternatePingHost = $null; RunCustomScript = $false; CustomScriptPath = $null }
             }
-        } else { 
+        } else {
             $Config.SoftOutageSettings = @{
                 Enabled                             = $false
                 LatencyThresholdMilliseconds        = $null
@@ -329,7 +329,7 @@ function Get-PingPlotterConfiguration {
                 Diagnostics                         = @{ Enabled = $false; IncludeIpConfig = $false; IncludeAlternatePing = $false; AlternatePingHost = $null; RunCustomScript = $false; CustomScriptPath = $null }
             }
         }
-        
+
         # Prompt for logging configuration
         $PromptLogConfigMessage = "`nLog current configuration? [(Y)es to main log|(N)o (default)|(C)onfig.JSON in script dir|(filename/path)]"
         $LogConfigInput = Read-Host -Prompt $PromptLogConfigMessage
@@ -340,10 +340,10 @@ function Get-PingPlotterConfiguration {
             $Config.GeneralSettings.LogConfigurationToJson = $true
             Write-Host "Configuration will be logged to the main log file." -ForegroundColor Gray
         } elseif ($LogConfigInput -eq 'C' -or $LogConfigInput -eq 'c') {
-            $Config.GeneralSettings.LogConfigurationToJson = "Config.JSON" 
+            $Config.GeneralSettings.LogConfigurationToJson = "Config.JSON"
             Write-Host "Configuration will be logged to 'Config.JSON' in the script directory." -ForegroundColor Gray
         } else {
-            $Config.GeneralSettings.LogConfigurationToJson = $LogConfigInput 
+            $Config.GeneralSettings.LogConfigurationToJson = $LogConfigInput
             Write-Host "Configuration will be logged to '$LogConfigInput'." -ForegroundColor Gray
         }
 
@@ -352,7 +352,7 @@ function Get-PingPlotterConfiguration {
         $Config.GeneralSettings.DelaySeconds = 2
         $Config.GeneralSettings.PingMode = 'ICMP'
         $Config.GeneralSettings.TargetPort = $null
-        
+
         $ScriptDirectory = $PSScriptRoot
         if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) { $ScriptDirectory = $PWD.Path }
         $DefaultLogFileNameInteractive = "ping_plotter_log_{0}.txt" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
@@ -364,8 +364,8 @@ function Get-PingPlotterConfiguration {
 
         $Config.SoftOutageSettings = @{
             Enabled                             = $false
-            LatencyThresholdMilliseconds        = $null 
-            ConsecutiveHighLatencyThreshold     = $null 
+            LatencyThresholdMilliseconds        = $null
+            ConsecutiveHighLatencyThreshold     = $null
             Diagnostics                         = @{ Enabled = $false; IncludeIpConfig = $false; IncludeAlternatePing = $false; AlternatePingHost = $null; RunCustomScript = $false; CustomScriptPath = $null }
         }
         # Default LogConfigurationToJson to false if advanced settings are skipped
@@ -374,7 +374,7 @@ function Get-PingPlotterConfiguration {
 
     Write-Host "`n--- Interactive Configuration Complete ---" -ForegroundColor Yellow
     Write-Host "You can save the following JSON to a file and use it with the -ConfigurationFile argument for future runs`:" -ForegroundColor Cyan
-    Write-Host ($Config | ConvertTo-Json -Depth 5) 
+    Write-Host ($Config | ConvertTo-Json -Depth 5)
     return $Config
 }
 
@@ -397,7 +397,7 @@ function Test-PingPlotterConfiguration {
         $ErrorMessages.Add("GeneralSettings.TargetPort is required for TCP mode and must be an integer between 1 and 65535.")
     }
     if ([string]::IsNullOrWhiteSpace($GS.LogFilePath)) { $ErrorMessages.Add("GeneralSettings.LogFilePath cannot be empty.") }
-    
+
     if ($GS.ContainsKey('LogConfigurationToJson')) {
         $LogConfigValue = $GS.LogConfigurationToJson
         if ($null -ne $LogConfigValue -and $LogConfigValue -isnot [bool] -and $LogConfigValue -isnot [string]) {
@@ -466,28 +466,50 @@ function Invoke-SingleConnectivityTest {
     )
 
     $Result = @{ Success = $false; LatencyMilliseconds = $null; ErrorMessage = $null; IsHighLatency = $false }
+    # IsHighLatency is determined by the calling function Start-PingPlotterSession
 
     try {
         if ($ConnectivityTestMode -eq 'ICMP') {
-            $PingOutput = ping.exe -n 1 -w 1000 $TargetHostName 2>&1
-            $ExitCode = $LASTEXITCODE
+            $Error.Clear() # Clear automatic error variable before the call
+            $PingAttemptResult = $null
+            try {
+                # In PS 5.1, Test-Connection -Count 1 has a default timeout of ~4-5 seconds, not configurable by a simple parameter.
+                $PingAttemptResult = Test-Connection -ComputerName $TargetHostName -Count 1 -ErrorAction SilentlyContinue
+            }
+            catch {
+                # This catch block is unlikely to be hit with SilentlyContinue for common ping errors,
+                # but could catch more fundamental issues with the cmdlet's execution.
+                $Result.Success = $false
+                $Result.LatencyMilliseconds = $null
+                $Result.ErrorMessage = "Unexpected terminating exception during Test-Connection call to '$TargetHostName'`: $($_.Exception.Message)"
+                return $Result # Exit early as a fundamental error occurred
+            }
 
-            if ($ExitCode -ne 0) {
-                $Result.ErrorMessage = "Ping command failed. Exit Code`: $ExitCode. Output`: $($PingOutput -join ' ')"
-            } elseif ($PingOutput -match "Reply from .* time(?:=|<)(\d+)ms") {
-                $Result.Success = $true
-                try {
-                    $Result.LatencyMilliseconds = [int]$Matches[1]
-                } catch {
-                    Write-Warning "Could not parse latency from ping output`: $($Matches[1])"
-                    $Result.LatencyMilliseconds = -1 
+            if ($null -ne $PingAttemptResult) {
+                if ($PingAttemptResult.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                    $Result.Success = $true
+                    $Result.LatencyMilliseconds = $PingAttemptResult.Latency
+                    $Result.ErrorMessage = $null
+                } else {
+                    # Test-Connection returned an object, but it indicates failure (e.g., TimedOut, DestinationHostUnreachable)
+                    $Result.Success = $false
+                    $Result.LatencyMilliseconds = $null # Explicitly set to null on failure as per requirement
+                    $RespondingAddressInfo = if ($null -ne $PingAttemptResult.Address) { $PingAttemptResult.Address.IPAddressToString } else { "N/A" }
+                    $Result.ErrorMessage = "Test-Connection to '$($PingAttemptResult.Destination)' failed. Status`: $($PingAttemptResult.Status.ToString()). Responding Address (if any)`: $RespondingAddressInfo."
                 }
-            } elseif ($PingOutput -match "Request timed out") {
-                 $Result.ErrorMessage = "Ping request timed out. Output`: $($PingOutput -join ' ')"
             } else {
-                $Result.ErrorMessage = "Ping command returned success code but output was not recognized. Output`: $($PingOutput -join ' ')"
+                # Test-Connection returned $null, meaning an error likely prevented object creation (e.g., DNS failure)
+                $Result.Success = $false
+                $Result.LatencyMilliseconds = $null
+                if ($Error.Count -gt 0) {
+                    $Result.ErrorMessage = "Test-Connection to '$TargetHostName' returned no result object. PowerShell Error`: $($Error[0].Exception.Message)"
+                    $Error.Clear() # Clear the error after handling
+                } else {
+                    $Result.ErrorMessage = "Test-Connection to '$TargetHostName' returned no result object and no specific PowerShell error was captured."
+                }
             }
         } elseif ($ConnectivityTestMode -eq 'TCP') {
+            # This TCP logic remains unchanged as per requirements.
             if ($null -eq $OptionalPortNumber) {
                 throw "Internal Error`: OptionalPortNumber parameter is required for TCP mode in Invoke-SingleConnectivityTest."
             }
@@ -501,8 +523,12 @@ function Invoke-SingleConnectivityTest {
 
             if ($null -ne $TncResult -and $TncResult.TcpTestSucceeded -eq $true) {
                 $Result.Success = $true
+                # For TCP, LatencyMilliseconds is typically derived from the ICMP ping that Test-NetConnection
+                # might also perform. If PingSucceeded is false, PingReplyDetails might be null.
                 if ($null -ne $TncResult.PingReplyDetails -and $null -ne $TncResult.PingReplyDetails.RoundtripTime) {
                     $Result.LatencyMilliseconds = $TncResult.PingReplyDetails.RoundtripTime
+                } else {
+                    $Result.LatencyMilliseconds = $null # Or 0, depending on desired behavior if ICMP part of TNC fails/is not relevant
                 }
             } else {
                 $Result.ErrorMessage = "Test-NetConnection failed for host $TargetHostName on port $OptionalPortNumber."
@@ -517,7 +543,10 @@ function Invoke-SingleConnectivityTest {
             }
         }
     } catch {
-        $Result.ErrorMessage = "Exception during connectivity test`: $($_.Exception.Message)"
+        # General catch for unexpected issues within the function's logic
+        $Result.Success = $false
+        $Result.LatencyMilliseconds = $null
+        $Result.ErrorMessage = "General exception during connectivity test for '$TargetHostName'`: $($_.Exception.Message)"
     }
     return $Result
 }
@@ -530,7 +559,7 @@ function Invoke-OutageDiagnosticAction {
         [Parameter(Mandatory = $true)]
         [string]$LogFilePath,
         [Parameter(Mandatory = $true)]
-        [string]$OutageTypeString 
+        [string]$OutageTypeString
     )
 
     if (-not $DiagnosticSettings.Enabled) { return }
@@ -550,27 +579,39 @@ function Invoke-OutageDiagnosticAction {
     if ($DiagnosticSettings.IncludeAlternatePing -and -not [string]::IsNullOrWhiteSpace($DiagnosticSettings.AlternatePingHost)) {
         Add-PingPlotterLogEntry -MessageToLog "Diagnostic`: Pinging alternate host $($DiagnosticSettings.AlternatePingHost)" -PathToLogFile $LogFilePath
         try {
-            $LASTEXITCODE = 0 
-            $PingCmd = "ping.exe -n 4 $($DiagnosticSettings.AlternatePingHost)"
-            $AlternatePingOutput = Invoke-Expression $PingCmd 2>&1 | Out-String
-            $ExitCodeFromPing = $LASTEXITCODE
-            $LogEntry = "Alternate Ping Output for $($DiagnosticSettings.AlternatePingHost)`:`n$AlternatePingOutput"
-            if ($ExitCodeFromPing -ne 0) {
-                $LogEntry += "`nPing Exit Code`: $ExitCodeFromPing"
+            # Using Test-Connection for the alternate ping as well, for consistency
+            $Error.Clear()
+            $AlternatePingResult = Test-Connection -ComputerName $DiagnosticSettings.AlternatePingHost -Count 4 -ErrorAction SilentlyContinue
+            $LogEntry = "Alternate Ping (Test-Connection) Output for $($DiagnosticSettings.AlternatePingHost)`:`n"
+            if ($null -ne $AlternatePingResult) {
+                $LogEntry += ($AlternatePingResult | Format-Table -AutoSize | Out-String)
+                # Check overall success for the alternate ping
+                $SuccessfulPings = ($AlternatePingResult | Where-Object {$_.Status -eq [System.Net.NetworkInformation.IPStatus]::Success}).Count
+                if ($SuccessfulPings -gt 0) {
+                    $LogEntry += "`nAlternate ping was at least partially successful ($SuccessfulPings/4)."
+                } else {
+                    $LogEntry += "`nAlternate ping failed for all attempts. Last status (if any)`: $($AlternatePingResult[-1].Status.ToString())."
+                }
+            } elseif ($Error.Count -gt 0) {
+                $LogEntry += "Test-Connection to alternate host failed to return object. PowerShell Error`: $($Error[0].Exception.Message)"
+                $Error.Clear()
+            } else {
+                $LogEntry += "Test-Connection to alternate host returned no object and no specific error."
             }
             Add-PingPlotterLogEntry -MessageToLog $LogEntry -PathToLogFile $LogFilePath
         } catch {
-            Add-PingPlotterLogEntry -MessageToLog "Error pinging alternate host $($DiagnosticSettings.AlternatePingHost)`: $($_.Exception.Message)" -PathToLogFile $LogFilePath
+            Add-PingPlotterLogEntry -MessageToLog "Error during alternate Test-Connection to $($DiagnosticSettings.AlternatePingHost)`: $($_.Exception.Message)" -PathToLogFile $LogFilePath
         }
     }
 
     if ($DiagnosticSettings.RunCustomScript -and -not [string]::IsNullOrWhiteSpace($DiagnosticSettings.CustomScriptPath)) {
         Add-PingPlotterLogEntry -MessageToLog "Diagnostic`: Running custom script/command`: $($DiagnosticSettings.CustomScriptPath)" -PathToLogFile $LogFilePath
         try {
-            $LASTEXITCODE = 0 
+            $LASTEXITCODE = 0 # Reset before Invoke-Expression
+            # Ensure output from stderr is also captured.
             $CustomScriptOutput = Invoke-Expression "$($DiagnosticSettings.CustomScriptPath) 2>&1" | Out-String
             $ExitCodeFromScript = $LASTEXITCODE
-            
+
             $LogEntryMessage = "Custom Script Output`:`n$CustomScriptOutput"
             if ($ExitCodeFromScript -ne 0) {
                 $LogEntryMessage += "`nCustom Script Exit Code`: $ExitCodeFromScript (non-zero suggests an issue or specific status)"
@@ -619,7 +660,7 @@ function Start-PingPlotterSession {
     $SOS = $Configuration.SoftOutageSettings
 
     $SuccessfulChecks = 0
-    $TotalChecksAttemptedThisSession = 0 
+    $TotalChecksAttemptedThisSession = 0
     $UnreachabilityLogEvents = New-Object System.Collections.Generic.List[hashtable]
 
     $ConsecutiveHardFailures = 0
@@ -633,17 +674,25 @@ function Start-PingPlotterSession {
     $ModeDetails = if ($GS.TargetPort) { "`:$($GS.TargetPort)" } else { '' }
     $InitialLogMessage = "--- Session started for host`: $($GS.TargetHost) --- Checks`: $($GS.CheckCount), Delay`: $($GS.DelaySeconds)s, Mode`: $($GS.PingMode)$ModeDetails --- "
     Add-PingPlotterLogEntry -MessageToLog $InitialLogMessage -PathToLogFile $EffectiveLogFilePath
-    if ($GS.PingMode -eq 'ICMP' -and $SOS.Enabled) {
-        Add-PingPlotterLogEntry -MessageToLog "Soft Outage Detection Enabled`: Latency > $($SOS.LatencyThresholdMilliseconds)ms for $($SOS.ConsecutiveHighLatencyThreshold) consecutive checks." -PathToLogFile $EffectiveLogFilePath
+    if ($GS.PingMode -eq 'ICMP') {
+        Add-PingPlotterLogEntry -MessageToLog "ICMP tests now use Test-Connection. Note: Default timeout for Test-Connection is ~4-5s and not configurable per-call in PS 5.1." -PathToLogFile $EffectiveLogFilePath
+        if ($SOS.Enabled) {
+            Add-PingPlotterLogEntry -MessageToLog "Soft Outage Detection Enabled`: Latency > $($SOS.LatencyThresholdMilliseconds)ms for $($SOS.ConsecutiveHighLatencyThreshold) consecutive checks." -PathToLogFile $EffectiveLogFilePath
+        }
     }
 
+
     Write-Host "Starting connectivity check session... Press Ctrl+C to interrupt." -ForegroundColor Green
+    if ($GS.PingMode -eq 'ICMP') {
+        
+    }
+
 
     for ($i = 1; $i -le $GS.CheckCount; $i++) {
         try {
             $TotalChecksAttemptedThisSession = $i
             $CompletedChecksCount = $i - 1
-            
+
             $CoreProgressText = "Checking $($GS.TargetHost) ($i/$($GS.CheckCount))... Success`: $SuccessfulChecks/$CompletedChecksCount"
 
             $OutageEventsCount = $UnreachabilityLogEvents.Count
@@ -672,7 +721,7 @@ function Start-PingPlotterSession {
                 $LastOutageTimeString = if ($LastOutageTimeForDisplay) { $LastOutageTimeForDisplay.ToString('yyyy-MM-dd HH:mm:ss') } else { "N/A" }
                 $OutageInfoString = "[$DisplayOutageCount $OutageNoun detected, $OutageTypeDescriptionForDisplay $LastOutageTimeString]"
             }
-            
+
             $BaseOutputForProgressLine = "$CoreProgressText $OutageInfoString"
             $StatusSpecificOutput = ""
             $StatusSpecificColor = $null
@@ -681,7 +730,7 @@ function Start-PingPlotterSession {
 
             if ($TestResult.Success) {
                 $SuccessfulChecks++
-                $ConsecutiveHardFailures = 0 
+                $ConsecutiveHardFailures = 0
 
                 if ($IsCurrentlyInHardOutage) {
                     $IsCurrentlyInHardOutage = $false
@@ -693,8 +742,9 @@ function Start-PingPlotterSession {
                 }
 
                 if ($GS.PingMode -eq 'ICMP' -and $SOS.Enabled) {
-                    if ($TestResult.LatencyMilliseconds -gt $SOS.LatencyThresholdMilliseconds) {
-                        $TestResult.IsHighLatency = $true 
+                    # $TestResult.LatencyMilliseconds should be populated if $TestResult.Success is true
+                    if ($null -ne $TestResult.LatencyMilliseconds -and $TestResult.LatencyMilliseconds -gt $SOS.LatencyThresholdMilliseconds) {
+                        $TestResult.IsHighLatency = $true # This field is part of the $Result hashtable from Invoke-SingleConnectivityTest
                         $ConsecutiveSoftFailures++
                         $StatusSpecificOutput = " (High Latency`: $($TestResult.LatencyMilliseconds)ms)"
                         $StatusSpecificColor = 'Yellow'
@@ -705,7 +755,8 @@ function Start-PingPlotterSession {
                             Add-PingPlotterLogEntry -MessageToLog $LogMsg -PathToLogFile $EffectiveLogFilePath
                             Invoke-OutageDiagnosticAction -DiagnosticSettings $SOS.Diagnostics -LogFilePath $EffectiveLogFilePath -OutageTypeString "Soft Outage (High Latency)"
                         }
-                    } else { 
+                    } else {
+                        $TestResult.IsHighLatency = $false
                         $ConsecutiveSoftFailures = 0
                         if ($IsCurrentlyInSoftOutage) {
                             $IsCurrentlyInSoftOutage = $false
@@ -717,15 +768,15 @@ function Start-PingPlotterSession {
                         }
                     }
                 }
-            } else { 
+            } else {
                 $ConsecutiveHardFailures++
-                $ConsecutiveSoftFailures = 0 
+                $ConsecutiveSoftFailures = 0 # A hard failure resets soft failure counter
                 $StatusSpecificOutput = " (Failed)"
                 $StatusSpecificColor = 'Red'
 
                 if ($IsCurrentlyInSoftOutage) {
                     $IsCurrentlyInSoftOutage = $false
-                    $SoftOutageEndTime = Get-Date 
+                    $SoftOutageEndTime = Get-Date
                     $UnreachabilityLogEvents.Add(@{ Host = $GS.TargetHost; StartTime = $CurrentSoftOutageStartTime; EndTime = $SoftOutageEndTime; Type = "Soft (High Latency) - Ended by Failure" })
                     $LogMsg = "Host $($GS.TargetHost) exited Soft Outage due to connection failure. Was in soft outage from $($CurrentSoftOutageStartTime.ToString('yyyy-MM-dd HH:mm:ss')) to $($SoftOutageEndTime.ToString('yyyy-MM-dd HH:mm:ss'))."
                     Add-PingPlotterLogEntry -MessageToLog $LogMsg -PathToLogFile $EffectiveLogFilePath
@@ -740,7 +791,7 @@ function Start-PingPlotterSession {
                     Invoke-OutageDiagnosticAction -DiagnosticSettings $HOS.Diagnostics -LogFilePath $EffectiveLogFilePath -OutageTypeString "Hard Outage"
                 }
             }
-            
+
             Write-Host -NoNewline "`r"
             Write-Host -NoNewline $BaseOutputForProgressLine
             if (-not [string]::IsNullOrEmpty($StatusSpecificOutput)) {
@@ -753,13 +804,13 @@ function Start-PingPlotterSession {
 
             if ($i -lt $GS.CheckCount) { Start-Sleep -Seconds $GS.DelaySeconds }
 
-        } catch { 
+        } catch {
             Write-Warning "`nUnexpected error or interruption during check loop (Check $i of $($GS.CheckCount))`:$($_.Exception.Message)"
             Add-PingPlotterLogEntry -MessageToLog "Session interrupted or error after $TotalChecksAttemptedThisSession checks`: $($_.Exception.Message)" -PathToLogFile $EffectiveLogFilePath
-            throw 
+            throw
         }
     }
-    Write-Host "" 
+    Write-Host ""
 
     if ($IsCurrentlyInHardOutage) {
         $UnreachableEndTime = Get-Date
@@ -840,28 +891,28 @@ try {
         Write-Verbose "Parameter '-ConfigurationFile' provided with value`: '$ProvidedPath'"
 
         $ResolvedPath = $null
-        if ($ProvidedPath -match "[\\/]") { 
+        if ($ProvidedPath -match "[\\/]") {
             $ResolvedPath = Resolve-Path -Path $ProvidedPath -ErrorAction SilentlyContinue
-        } else { 
+        } else {
             $ResolvedPath = Join-Path -Path $ScriptBaseDirectory -ChildPath $ProvidedPath
         }
 
         if ($null -eq $ResolvedPath -or -not (Test-Path -Path $ResolvedPath -PathType Leaf)) {
             throw "Configuration file specified via -ConfigurationFile ('$ProvidedPath') not found or is not a file. Attempted to resolve to`: '$($ResolvedPath | Out-String -NoNewline)'."
         }
-        $EffectiveConfigurationFilePathForMessage = $ResolvedPath.ToString() 
+        $EffectiveConfigurationFilePathForMessage = $ResolvedPath.ToString()
         Write-Output "Loading configuration from JSON file`: '$EffectiveConfigurationFilePathForMessage'"
-        
+
         $JsonContent = Get-Content -Path $ResolvedPath -Raw -ErrorAction Stop
         $ParsedJson = $JsonContent | ConvertFrom-Json -ErrorAction Stop
-        
+
         if ($null -eq $ParsedJson) {
             throw "Failed to parse JSON content from '$($ResolvedPath.ToString())', or the file is empty."
         }
         if ($ParsedJson -is [array]) {
             throw "The configuration file '$($ResolvedPath.ToString())' contains a JSON array at its root. A single JSON object is expected for configuration."
         }
-        
+
         $UserConfiguration = Convert-PSCustomObjectToHashtable -InputObject $ParsedJson
         if ($null -eq $UserConfiguration) {
              throw "Failed to convert the parsed JSON object from '$($ResolvedPath.ToString())' into a usable hashtable configuration."
@@ -869,7 +920,7 @@ try {
         $ConfigurationSource = "JSON File`: $EffectiveConfigurationFilePathForMessage"
     } else {
         Write-Host "`nNo configuration file specified. Starting interactive configuration..." -ForegroundColor Cyan
-        $UserConfiguration = Get-PingPlotterConfiguration 
+        $UserConfiguration = Get-PingPlotterConfiguration
         $ConfigurationSource = "Interactive"
     }
 
@@ -877,7 +928,7 @@ try {
     if (-not (Test-PingPlotterConfiguration -ConfigurationData $UserConfiguration)) {
         throw "Configuration is invalid. Please correct the errors listed above or in the JSON file and try again."
     }
-    
+
     $ConfiguredLogPath = $null
     if ($UserConfiguration.GeneralSettings.ContainsKey('LogFilePath')) {
         $ConfiguredLogPath = $UserConfiguration.GeneralSettings.LogFilePath
@@ -889,12 +940,12 @@ try {
             $EffectiveLogFilePath = Join-Path -Path $ScriptBaseDirectory -ChildPath $EffectiveLogFilePath
             Write-Verbose "Relative log file path from configuration resolved to`: $EffectiveLogFilePath"
         }
-    } else { 
+    } else {
         $DefaultLogFileNameMain = "ping_plotter_log_{0}.txt" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
         $EffectiveLogFilePath = Join-Path -Path $ScriptBaseDirectory -ChildPath $DefaultLogFileNameMain
         Write-Verbose "Log file path not specified or empty in configuration, defaulting to`: $EffectiveLogFilePath"
     }
-    $UserConfiguration.GeneralSettings.LogFilePath = $EffectiveLogFilePath 
+    $UserConfiguration.GeneralSettings.LogFilePath = $EffectiveLogFilePath
     Write-Output "Operational logs will be saved to`: $EffectiveLogFilePath"
 
 
@@ -934,18 +985,18 @@ try {
             $ConfigJsonForLog = $UserConfiguration | ConvertTo-Json -Depth 5
             $LogHeader = "--- BEGIN CONFIGURATION JSON (as of session start $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) ---"
             $LogFooter = "--- END CONFIGURATION JSON ---"
-            $FullConfigLogMessage = "$LogHeader`n$ConfigJsonForLog`n$LogFooter`n" 
-            
+            $FullConfigLogMessage = "$LogHeader`n$ConfigJsonForLog`n$LogFooter`n"
+
             $LogDirectory = Split-Path -Path $PathForConfigLog -Parent
             if ($null -ne $LogDirectory -and (-not (Test-Path -Path $LogDirectory -PathType Container))) {
                 Write-Verbose "Creating directory for config log: $LogDirectory"
                 New-Item -Path $LogDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
             }
-            
-            if ($PathForConfigLog -eq $EffectiveLogFilePath) { 
+
+            if ($PathForConfigLog -eq $EffectiveLogFilePath) {
                 # Prepend to the main operational log file
                 Add-Content -Path $PathForConfigLog -Value $FullConfigLogMessage -ErrorAction Stop
-            } else { 
+            } else {
                 # Create or overwrite a separate file for the configuration
                 Set-Content -Path $PathForConfigLog -Value $FullConfigLogMessage -ErrorAction Stop
             }
@@ -982,7 +1033,7 @@ try {
     if ($_.ScriptStackTrace) {
         Write-Warning "Stack Trace`: $($_.ScriptStackTrace)"
     }
-    
+
     if ($null -ne $EffectiveLogFilePath) {
         try {
             Add-PingPlotterLogEntry -MessageToLog "CRITICAL ERROR: Script execution halted. Error Message: $($_.Exception.Message)" -PathToLogFile $EffectiveLogFilePath
@@ -997,4 +1048,3 @@ try {
 }
 
 #endregion Main Script Logic
-

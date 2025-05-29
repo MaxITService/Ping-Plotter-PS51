@@ -1,0 +1,104 @@
+--- BEGIN CONFIGURATION JSON (as of session start 2025-05-19 21.21.14) ---
+{
+  "GeneralSettings": {
+    "TargetPort": null,
+    "TargetHost": "google.fi",
+    "LogFilePath": "C:\\Code\\PowerShell\\PingPlotterPS51\\ping_plotter_log_20250519_212000.txt",
+    "DelaySeconds": 2,
+    "PingMode": "ICMP",
+    "CheckCount": 10000,
+    "LogConfigurationToJson": true
+  },
+  "HardOutageSettings": {
+    "Diagnostics": {
+      "AlternatePingHost": "yahoo.com",
+      "IncludeIpConfig": true,
+      "RunCustomScript": true,
+      "CustomScriptPath": "Write-host \"this is stdout\"",
+      "Enabled": true,
+      "IncludeAlternatePing": true
+    },
+    "ConsecutiveFailuresThreshold": 3
+  },
+  "SoftOutageSettings": {
+    "Diagnostics": {
+      "AlternatePingHost": null,
+      "IncludeIpConfig": false,
+      "RunCustomScript": false,
+      "CustomScriptPath": null,
+      "Enabled": false,
+      "IncludeAlternatePing": false
+    },
+    "Enabled": true,
+    "ConsecutiveHighLatencyThreshold": 1,
+    "LatencyThresholdMilliseconds": 50
+  }
+}
+--- END CONFIGURATION JSON ---
+
+2025-05-19 21.21.14 - --- Session started for host: google.fi --- Checks: 10000, Delay: 2s, Mode: ICMP --- 
+2025-05-19 21.21.14 - Soft Outage Detection Enabled: Latency > 50ms for 1 consecutive checks.
+2025-05-19 21.22.09 - Host google.fi became unreachable (Hard Outage). Error: Ping command failed. Exit Code: 1. Output: Ping request could not find host google.fi. Please check the name and try again.
+2025-05-19 21.22.09 - --- Starting Diagnostics for Hard Outage ---
+2025-05-19 21.22.09 - Diagnostic: Running ipconfig /all
+2025-05-19 21.22.09 - ipconfig /all Output:
+
+Windows IP Configuration
+
+   Host Name . . . . . . . . . . . . : Murcomputer25
+   Primary Dns Suffix  . . . . . . . : 
+   Node Type . . . . . . . . . . . . : Hybrid
+   IP Routing Enabled. . . . . . . . : No
+   WINS Proxy Enabled. . . . . . . . : No
+
+Unknown adapter wg_server:
+
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : WireGuard Tunnel
+   Physical Address. . . . . . . . . : 
+   DHCP Enabled. . . . . . . . . . . : No
+   Autoconfiguration Enabled . . . . : Yes
+   IPv4 Address. . . . . . . . . . . : 10.222.10.1(Preferred) 
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 
+   DNS Servers . . . . . . . . . . . : fec0:0:0:ffff::1%1
+                                       fec0:0:0:ffff::2%1
+                                       fec0:0:0:ffff::3%1
+   NetBIOS over Tcpip. . . . . . . . : Enabled
+
+Ethernet adapter Bluetooth Network Connection:
+
+   Media State . . . . . . . . . . . : Media disconnected
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : Bluetooth Device (Personal Area Network)
+   Physical Address. . . . . . . . . : 04-7F-0E-18-02-73
+   DHCP Enabled. . . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . . . : Yes
+
+Ethernet adapter vEthernet (Default Switch):
+
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : Hyper-V Virtual Ethernet Adapter
+   Physical Address. . . . . . . . . : 00-15-5D-78-45-EC
+   DHCP Enabled. . . . . . . . . . . : No
+   Autoconfiguration Enabled . . . . : Yes
+   Link-local IPv6 Address . . . . . : fe80::6c95:e7cc:482d:4023%19(Preferred) 
+   IPv4 Address. . . . . . . . . . . : 172.19.224.1(Preferred) 
+   Subnet Mask . . . . . . . . . . . : 255.255.240.0
+   Default Gateway . . . . . . . . . : 
+   DHCPv6 IAID . . . . . . . . . . . : 318772573
+   DHCPv6 Client DUID. . . . . . . . : 00-01-00-01-2F-19-B1-9A-7C-10-C9-52-83-19
+   DNS Servers . . . . . . . . . . . : fec0:0:0:ffff::1%1
+                                       fec0:0:0:ffff::2%1
+                                       fec0:0:0:ffff::3%1
+   NetBIOS over Tcpip. . . . . . . . : Enabled
+
+2025-05-19 21.22.09 - Diagnostic: Pinging alternate host yahoo.com
+2025-05-19 21.22.09 - Alternate Ping Output for yahoo.com:
+Ping request could not find host yahoo.com. Please check the name and try again.
+
+2025-05-19 21.22.09 - Diagnostic: Running custom script/command: Write-host "this is stdout"
+2025-05-19 21.22.09 - Custom Script Output:
+
+2025-05-19 21.22.09 - --- Finished Diagnostics for Hard Outage ---
+2025-05-19 21.22.38 - Host google.fi became reachable. Hard Outage ended. Was unreachable from 2025-05-19 21.22.09 to 2025-05-19 21.22.38.

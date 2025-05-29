@@ -1,0 +1,3 @@
+2025-05-17 02.22.59 - --- Session started for host: google.com --- Checks: 10000, Delay: 2s, Mode: ICMP --- 
+2025-05-17 02.27.02 - Host google.com became unreachable (Hard Outage). Error: Ping command failed. Exit Code: 1. Output:  Pinging google.com [216.58.210.142] with 32 bytes of data: General failure.  Ping statistics for 216.58.210.142:     Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),
+2025-05-17 13.50.39 - Host google.com became reachable. Hard Outage ended. Was unreachable from 2025-05-17 02.27.02 to 2025-05-17 13.50.39.

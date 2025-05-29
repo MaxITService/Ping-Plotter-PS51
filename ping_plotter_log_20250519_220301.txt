@@ -1,0 +1,2 @@
+2025-05-19 22.03.01 - --- Session started for host: google.fi --- Checks: 10000, Delay: 2s, Mode: ICMP --- 
+2025-05-19 22.03.05 - Host google.fi became unreachable (Hard Outage). Error: Ping to 'google.fi' (target was 'google.fi') failed. WMI StatusCode: .

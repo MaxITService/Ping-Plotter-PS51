@@ -1,0 +1,9 @@
+2025-05-30 00.03.19 - --- Session started for host: google.com --- Checks: 10000, Delay: 2s, Mode: ICMP --- 
+2025-05-30 00.03.19 - ICMP tests now use Test-Connection. Note: Default timeout for Test-Connection is ~4-5s and not configurable per-call in PS 5.1.
+2025-05-30 00.03.19 - Soft Outage Detection Enabled: Latency > 30ms for 1 consecutive checks.
+2025-05-30 00.04.29 - Host google.com entered Soft Outage (High Latency). Latency: 80ms. Threshold: >30ms for 1 checks.
+2025-05-30 00.05.15 - Host google.com exited Soft Outage (High Latency). Latency: 14ms. Was in soft outage from 2025-05-30 00.04.29 to 2025-05-30 00.05.15.
+2025-05-30 01.59.29 - Host google.com became unreachable (Hard Outage). Error: Test-Connection to 'google.com' returned no result object. PowerShell Error: Testing connection to computer 'google.com' failed: Cannot resolve the target name.
+2025-05-30 01.59.34 - Host google.com became reachable. Hard Outage ended. Was unreachable from 2025-05-30 01.59.29 to 2025-05-30 01.59.34.
+2025-05-30 01.59.52 - Host google.com entered Soft Outage (High Latency). Latency: 60ms. Threshold: >30ms for 1 checks.
+2025-05-30 01.59.58 - Host google.com exited Soft Outage (High Latency). Latency: 16ms. Was in soft outage from 2025-05-30 01.59.52 to 2025-05-30 01.59.58.
