@@ -1,8 +1,10 @@
 # PingPlotterPS51
-[![Hits](https://hits.sh/github.com/MaxITService/Ping-Plotter-PS51.svg?style=flat)](https://hits.sh/github.com/MaxITService/Ping-Plotter-PS51/)
+
+
+[![Hits](https://hits.sh/github.com/MaxITService/Ping-Plotter-PS51.svg?style=flat)](https://hits.sh/github.com/MaxITService/Ping-Plotter-PS51/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A PowerShell 5.1+ script that functions as a "ping plotter" analog. It tests connectivity to a target host, logs results, displays a summary, and can perform diagnostic actions during outages.
-
+<p><b><span style="color:green;">No learning curve - just run the script and follow the prompts!</span></b></p>
 **BETA STATUS NOTICE**: This script is currently in beta. While it has been tested, it may contain bugs or unexpected behaviors. Please report any issues you encounter.
 
 ## Features
@@ -77,5 +79,7 @@ Check out my Free Extension for Web AI chats to quickly reuse your prompts:
 
 [OneClickPrompts on Chrome Web Store](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1) | 
 [it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
+
+Add AI to your PowerShell that reads what you have in screen buffer:
 
 [Console2AI](https://github.com/MaxITService/Console2AI) (it is open source) Get AI to your PowerShell 
