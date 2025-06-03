@@ -31,18 +31,18 @@ If the path is a simple filename (no path separators), the script will look for 
 in its own directory ($PSScriptRoot, or current working directory if $PSScriptRoot is not available).
 If this parameter is omitted, the script will run in interactive configuration mode.
 
-.EXAMPLE
-.\Get-PingPlot-PS5.ps1
+# Example: run interactively
+.\Get-Ping-Plot-PS51.ps1
 # Runs the script interactively, prompting for all configuration.
 # At the end of the interactive session, a JSON representation of the configuration
 # will be printed, which can be saved and used with the -ConfigurationFile option.
 
-.EXAMPLE
-.\Get-PingPlot-PS5.ps1 -ConfigurationFile "my_ping_config.json"
+# Example: load settings from JSON file in script directory
+.\Get-Ping-Plot-PS51.ps1 -ConfigurationFile "my_ping_config.json"
 # Runs the script using settings from 'my_ping_config.json' located in the script's directory.
 
-.EXAMPLE
-.\Get-PingPlot-PS5.ps1 -ConfigurationFile "C:\configs\server_monitoring_config.json"
+# Example: load settings from an absolute JSON path
+.\Get-Ping-Plot-PS51.ps1 -ConfigurationFile "C:\configs\server_monitoring_config.json"
 # Runs the script using settings from the specified absolute path.
 
 .NOTES
@@ -636,7 +636,7 @@ function Add-PingPlotterLogEntry {
         $Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $FormattedMessage = "$Timestamp - $MessageToLog"
         $LogDirectory = Split-Path -Path $PathToLogFile -Parent
-        if ($null -ne $LogDirectory -and (-not (Test-Path -Path $LogDirectory -PathType Container))) {
+        if (-not [string]::IsNullOrWhiteSpace($LogDirectory) -and (-not (Test-Path -Path $LogDirectory -PathType Container))) {
             Write-Verbose "Creating log directory`: $LogDirectory"
             New-Item -Path $LogDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
         }

@@ -36,13 +36,13 @@ A PowerShell 5.1+ script that functions as a "ping plotter" analog. It tests con
 
 ### Interactive Mode
 ```powershell
-.\Get-PingPolt-PS51.ps1
+.\Get-Ping-Plot-PS51.ps1
 ```
 This will prompt you for all configuration options.
 
 ### Configuration File Mode
 ```powershell
-.\Get-PingPolt-PS51.ps1 -ConfigurationFile "my_ping_config.json"
+.\Get-Ping-Plot-PS51.ps1 -ConfigurationFile "my_ping_config.json"
 ```
 
 ### Example Configuration File
