@@ -26,12 +26,6 @@ A PowerShell 5.1+ script that functions as a "ping plotter" analog. It tests con
 - Windows PowerShell 5.1 or later
 - Windows operating system
 
-
-## Installation
-
-1. Clone this repository or download the script file
-2. No additional modules required
-
 ## Usage
 
 ### Interactive Mode
