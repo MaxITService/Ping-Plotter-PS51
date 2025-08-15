@@ -470,40 +470,62 @@ function Invoke-SingleConnectivityTest {
 
     try {
         if ($ConnectivityTestMode -eq 'ICMP') {
-            $Error.Clear() # Clear automatic error variable before the call
+            $Error.Clear()
             $PingAttemptResult = $null
             try {
-                # In PS 5.1, Test-Connection -Count 1 has a default timeout of ~4-5 seconds, not configurable by a simple parameter.
-                $PingAttemptResult = Test-Connection -ComputerName $TargetHostName -Count 1 -ErrorAction SilentlyContinue
-            }
-            catch {
-                # This catch block is unlikely to be hit with SilentlyContinue for common ping errors,
-                # but could catch more fundamental issues with the cmdlet's execution.
+                if ($PSVersionTable.PSVersion.Major -ge 6) {
+                    $PingAttemptResult = Test-Connection -TargetName $TargetHostName -Count 1 -ErrorAction SilentlyContinue
+                } else {
+                    $PingAttemptResult = Test-Connection -ComputerName $TargetHostName -Count 1 -ErrorAction SilentlyContinue
+                }
+            } catch {
                 $Result.Success = $false
                 $Result.LatencyMilliseconds = $null
-                $Result.ErrorMessage = "Unexpected terminating exception during Test-Connection call to '$TargetHostName'`: $($_.Exception.Message)"
-                return $Result # Exit early as a fundamental error occurred
+                $Result.ErrorMessage = "Unexpected terminating exception during Test-Connection call to '$TargetHostName': $($_.Exception.Message)"
+                return $Result
             }
 
             if ($null -ne $PingAttemptResult) {
-                if ($PingAttemptResult.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
-                    $Result.Success = $true
-                    $Result.LatencyMilliseconds = $PingAttemptResult.Latency
-                    $Result.ErrorMessage = $null
+                $Ping = @($PingAttemptResult)[-1]  # normalize
+
+                if ($Ping.PSObject.Properties.Match('Status').Count -gt 0) {
+                    # PS 6+/7 object: has .Status and .Latency
+                    if ($Ping.Status -eq 'Success') {
+                        $Result.Success = $true
+                        $Result.LatencyMilliseconds = [int]$Ping.Latency
+                        $Result.ErrorMessage = $null
+                    } else {
+                        $Result.Success = $false
+                        $Result.LatencyMilliseconds = $null
+                        $addr = if ($Ping.Address) { $Ping.Address } else { 'N/A' }
+                        $Result.ErrorMessage = "Test-Connection to '$TargetHostName' failed. Status: $($Ping.Status). Responding Address (if any): $addr."
+                    }
                 } else {
-                    # Test-Connection returned an object, but it indicates failure (e.g., TimedOut, DestinationHostUnreachable)
-                    $Result.Success = $false
-                    $Result.LatencyMilliseconds = $null # Explicitly set to null on failure as per requirement
-                    $RespondingAddressInfo = if ($null -ne $PingAttemptResult.Address) { $PingAttemptResult.Address.IPAddressToString } else { "N/A" }
-                    $Result.ErrorMessage = "Test-Connection to '$($PingAttemptResult.Destination)' failed. Status`: $($PingAttemptResult.Status.ToString()). Responding Address (if any)`: $RespondingAddressInfo."
+                    # Windows PowerShell 5.1 Win32_PingStatus: .StatusCode and .ResponseTime
+                    $statusCode = $Ping.StatusCode
+                    if ($statusCode -eq 0) {
+                        $Result.Success = $true
+                        $Result.LatencyMilliseconds = [int]$Ping.ResponseTime
+                        $Result.ErrorMessage = $null
+                    } else {
+                        $Result.Success = $false
+                        $Result.LatencyMilliseconds = $null
+                        $statusName = $null
+                        try { $statusName = ([System.Net.NetworkInformation.IPStatus]$statusCode).ToString() } catch { }
+                        if (-not $statusName) { $statusName = "StatusCode $statusCode" }
+                        $responding =
+                            if ($Ping.ProtocolAddress) { $Ping.ProtocolAddress }
+                            elseif ($Ping.Address)     { $Ping.Address }
+                            else                       { "N/A" }
+                        $Result.ErrorMessage = "Test-Connection to '$TargetHostName' failed. Status: $statusName. Responding Address (if any): $responding."
+                    }
                 }
             } else {
-                # Test-Connection returned $null, meaning an error likely prevented object creation (e.g., DNS failure)
                 $Result.Success = $false
                 $Result.LatencyMilliseconds = $null
                 if ($Error.Count -gt 0) {
-                    $Result.ErrorMessage = "Test-Connection to '$TargetHostName' returned no result object. PowerShell Error`: $($Error[0].Exception.Message)"
-                    $Error.Clear() # Clear the error after handling
+                    $Result.ErrorMessage = "Test-Connection to '$TargetHostName' returned no result object. PowerShell Error: $($Error[0].Exception.Message)"
+                    $Error.Clear()
                 } else {
                     $Result.ErrorMessage = "Test-Connection to '$TargetHostName' returned no result object and no specific PowerShell error was captured."
                 }
@@ -581,16 +603,37 @@ function Invoke-OutageDiagnosticAction {
         try {
             # Using Test-Connection for the alternate ping as well, for consistency
             $Error.Clear()
-            $AlternatePingResult = Test-Connection -ComputerName $DiagnosticSettings.AlternatePingHost -Count 4 -ErrorAction SilentlyContinue
+            if ($PSVersionTable.PSVersion.Major -ge 6) {
+                $AlternatePingResult = Test-Connection -TargetName $DiagnosticSettings.AlternatePingHost -Count 4 -ErrorAction SilentlyContinue
+            } else {
+                $AlternatePingResult = Test-Connection -ComputerName $DiagnosticSettings.AlternatePingHost -Count 4 -ErrorAction SilentlyContinue
+            }
             $LogEntry = "Alternate Ping (Test-Connection) Output for $($DiagnosticSettings.AlternatePingHost)`:`n"
             if ($null -ne $AlternatePingResult) {
                 $LogEntry += ($AlternatePingResult | Format-Table -AutoSize | Out-String)
-                # Check overall success for the alternate ping
-                $SuccessfulPings = ($AlternatePingResult | Where-Object {$_.Status -eq [System.Net.NetworkInformation.IPStatus]::Success}).Count
+                # Cross-version success count
+                $SuccessfulPings = (
+                    $AlternatePingResult | ForEach-Object {
+                        if ($_.PSObject.Properties.Match('Status').Count -gt 0) {
+                            if ($_.Status -eq 'Success') { 1 } else { 0 }
+                        } else {
+                            if ($_.StatusCode -eq 0) { 1 } else { 0 }
+                        }
+                    } | Measure-Object -Sum
+                ).Sum
                 if ($SuccessfulPings -gt 0) {
                     $LogEntry += "`nAlternate ping was at least partially successful ($SuccessfulPings/4)."
                 } else {
-                    $LogEntry += "`nAlternate ping failed for all attempts. Last status (if any)`: $($AlternatePingResult[-1].Status.ToString())."
+                    $last = @($AlternatePingResult)[-1]
+                    if ($last.PSObject.Properties.Match('Status').Count -gt 0) {
+                        $lastStatus = $last.Status
+                    } else {
+                        $statusName = $null
+                        try { $statusName = ([System.Net.NetworkInformation.IPStatus]$last.StatusCode).ToString() } catch { }
+                        if (-not $statusName) { $statusName = "StatusCode $($last.StatusCode)" }
+                        $lastStatus = $statusName
+                    }
+                    $LogEntry += "`nAlternate ping failed for all attempts. Last status: $lastStatus."
                 }
             } elseif ($Error.Count -gt 0) {
                 $LogEntry += "Test-Connection to alternate host failed to return object. PowerShell Error`: $($Error[0].Exception.Message)"
